@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuminaBypass — Ultimate URL Shortener Bypasser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="glow-bg-secondary"></div>
+
+    <div class="app-container">
+        <!-- Navigation / Header -->
+        <header>
+            <div class="brand">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-shield-halved brand-icon-glow"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>Lumina<span>Bypass</span></h1>
+                    <p>Ad-Link Bypass Core & Protection Suite</p>
+                </div>
+            </div>
+            <nav class="nav-tabs">
+                <button class="nav-tab active" id="tab-bypass" onclick="switchTab('bypass')">
+                    <i class="fa-solid fa-bolt"></i> Bypass Link
+                </button>
+                <button class="nav-tab" id="tab-history" onclick="switchTab('history')">
+                    <i class="fa-solid fa-clock-rotate-left"></i> History Log
+                </button>
+            </nav>
+        </header>
+
+        <!-- Main View: Bypasser Panel -->
+        <main class="tab-content" id="view-bypass">
+            <div class="bypass-card glass-panel">
+                <div class="card-header">
+                    <h2>Bypass Ad-Links Instantly</h2>
+                    <p>Circumvent Admaven, Adpaypost, and advanced dynamic link-locking platforms safely.</p>
+                </div>
+
+                <div class="input-section">
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-link input-icon"></i>
+                        <input type="text" id="short-url" placeholder="Paste shortened URL here (e.g., https://link.admaven.com/...)" autocomplete="off">
+                    </div>
+                    <button class="btn-primary" id="btn-bypass" onclick="startBypass()">
+                        <span>Bypass Link</span> <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <!-- Live WebSocket Terminal Output -->
+                <div class="progress-section" id="progress-container" style="display: none;">
+                    <div class="section-title">
+                        <h3><i class="fa-solid fa-circle-notch fa-spin"></i> Bypassing Gateway...</h3>
+                        <span class="timer-badge" id="elapsed-timer">0.0s</span>
+                    </div>
+                    
+                    <div class="terminal-box">
+                        <div class="terminal-header">
+                            <div class="dots">
+                                <span class="dot red"></span>
+                                <span class="dot yellow"></span>
+                                <span class="dot green"></span>
+                            </div>
+                            <span class="term-title">Bypass Engine Logs</span>
+                        </div>
+                        <div class="terminal-content" id="log-terminal">
+                            <!-- Live updates inserted here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Result Card -->
+                <div class="result-section" id="result-container" style="display: none;">
+                    <div class="result-card glass-panel-inner success-pulse">
+                        <div class="result-icon-success">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                        <div class="result-details">
+                            <h3>Bypassed Successfully!</h3>
+                            <div class="result-link-box">
+                                <span class="link-label">Original Destination Link</span>
+                                <div class="link-url-wrapper">
+                                    <a href="#" id="final-link" target="_blank" rel="noopener noreferrer">https://example.com</a>
+                                    <button class="btn-icon" onclick="copyFinalLink()" title="Copy Link">
+                                        <i class="fa-solid fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="stats-row">
+                                <div class="stat-item">
+                                    <span class="stat-label">Engine Strategy</span>
+                                    <span class="stat-value" id="res-strategy">Playwright Browser</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Hops Passed</span>
+                                    <span class="stat-value" id="res-hops">3</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Time Taken</span>
+                                    <span class="stat-value" id="res-time">2.45s</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Redirection Steps -->
+                            <div class="redirect-steps">
+                                <h4>Redirection Hops Traced</h4>
+                                <ul id="hops-list">
+                                    <!-- Hop list elements will be added dynamically -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Card -->
+                <div class="error-section" id="error-container" style="display: none;">
+                    <div class="result-card glass-panel-inner error-pulse">
+                        <div class="result-icon-error">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                        </div>
+                        <div class="result-details">
+                            <h3>Bypass Failed</h3>
+                            <p id="error-message">Failed to resolve ad page elements or timeout reached.</p>
+                            <button class="btn-secondary" onclick="resetBypasser()">
+                                <i class="fa-solid fa-rotate-left"></i> Try Again
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Main View: History Panel -->
+        <main class="tab-content" id="view-history" style="display: none;">
+            <div class="history-card glass-panel">
+                <div class="card-header">
+                    <h2>Redirection History</h2>
+                    <p>Recent links bypassed by your LuminaBypass service.</p>
+                </div>
+                
+                <div class="history-table-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Shortened Link</th>
+                                <th>Resolved Link</th>
+                                <th>Strategy</th>
+                                <th>Time Taken</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-rows">
+                            <!-- History items loaded dynamically -->
+                        </tbody>
+                    </table>
+                    <div class="empty-state" id="history-empty" style="display: none;">
+                        <i class="fa-solid fa-folder-open empty-icon"></i>
+                        <p>No links have been bypassed yet. Go to 'Bypass Link' to start!</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2026 LuminaBypass Core. Made for Premium Link Navigation & Protection.</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
