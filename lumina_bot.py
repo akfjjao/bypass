@@ -100,16 +100,44 @@ class BypassEngine:
         # -------------------------------------------------------------
         try:
             async with async_playwright() as p:
-                browser = await p.chromium.launch(
-                    headless=self.headless,
-                    args=[
-                        "--disable-gpu",
-                        "--no-sandbox",
-                        "--disable-dev-shm-usage",
-                        "--disable-web-security",
-                        "--disable-features=IsolateOrigins,site-per-process"
-                    ]
-                )
+                try:
+                    browser = await p.chromium.launch(
+                        headless=self.headless,
+                        args=[
+                            "--disable-gpu",
+                            "--no-sandbox",
+                            "--disable-dev-shm-usage",
+                            "--disable-web-security",
+                            "--disable-features=IsolateOrigins,site-per-process"
+                        ]
+                    )
+                except Exception as launch_err:
+                    err_msg = str(launch_err)
+                    # Self-healing logic if playwright browser binary is missing
+                    if "executable doesn't exist" in err_msg.lower() or "playwright install" in err_msg.lower() or "looks like playwright was just installed" in err_msg.lower():
+                        if logger:
+                            logger.info("Playwright Chromium browser binary is missing. Initiating automated self-healing install...")
+                        
+                        import subprocess
+                        # Run the playwright installation command in the active Python environment
+                        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+                        
+                        if logger:
+                            logger.info("Playwright Chromium installed successfully. Retrying sandbox browser launch...")
+                        
+                        # Retry launch after download
+                        browser = await p.chromium.launch(
+                            headless=self.headless,
+                            args=[
+                                "--disable-gpu",
+                                "--no-sandbox",
+                                "--disable-dev-shm-usage",
+                                "--disable-web-security",
+                                "--disable-features=IsolateOrigins,site-per-process"
+                            ]
+                        )
+                    else:
+                        raise launch_err
                 
                 context = await browser.new_context(
                     user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
