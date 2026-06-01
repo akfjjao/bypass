@@ -29,6 +29,24 @@ AD_DOMAINS = [
     "shortlink", "linkvertise", "shrinkme", "gplinks"
 ]
 
+def get_base_domain(url: str) -> str:
+    """Extracts the registered base domain name (e.g. admaven.com) from a URL."""
+    try:
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+        if domain.startswith("www."):
+            domain = domain[4:]
+        
+        parts = domain.split('.')
+        if len(parts) >= 2:
+            # Handle co.uk, com.br, net.in etc.
+            if parts[-2] in ["com", "co", "net", "org", "gov", "edu", "mil"] and len(parts) >= 3:
+                return ".".join(parts[-3:])
+            return ".".join(parts[-2:])
+        return domain
+    except:
+        return ""
+
 def is_ad_domain(url: str) -> bool:
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
@@ -45,8 +63,10 @@ class BypassEngine:
             url = "https://" + url
 
         start_time = time.time()
+        start_base = get_base_domain(url)
+        
         if logger:
-            logger.info(f"Starting bypass for: {url}")
+            logger.info(f"Starting bypass sequence for: {url} (Base Domain: {start_base})")
 
         # -------------------------------------------------------------
         # Strategy 1: Direct HTTP redirection follow
@@ -58,7 +78,10 @@ class BypassEngine:
             }
             response = requests.get(url, headers=headers, timeout=5, allow_redirects=True)
             final_url = response.url
-            if final_url != url and not is_ad_domain(final_url):
+            final_base = get_base_domain(final_url)
+            
+            # The resolved domain must be DIFFERENT from the starting shortener domain
+            if final_url != url and final_base != start_base and not is_ad_domain(final_url):
                 elapsed = time.time() - start_time
                 return {
                     "success": True,
@@ -111,10 +134,16 @@ class BypassEngine:
                     pass
                 
                 final_url = None
-                max_checks = 8
+                max_checks = 12  # 18 seconds max observation window for dynamic loading
                 for check in range(max_checks):
                     current_url = page.url
-                    if current_url != url and not is_ad_domain(current_url) and current_url != "about:blank":
+                    current_base = get_base_domain(current_url)
+                    
+                    # Criteria: URL must change, domain must escape shortener base domain, must not be ad domain
+                    if (current_url != url and 
+                        current_base != start_base and 
+                        current_url != "about:blank" and 
+                        not is_ad_domain(current_url)):
                         final_url = current_url
                         break
                     await asyncio.sleep(1.5)
@@ -125,7 +154,11 @@ class BypassEngine:
                 await browser.close()
                 elapsed = time.time() - start_time
                 
-                if final_url and final_url != url and not is_ad_domain(final_url):
+                final_base = get_base_domain(final_url)
+                if (final_url and 
+                    final_url != url and 
+                    final_base != start_base and 
+                    not is_ad_domain(final_url)):
                     return {
                         "success": True,
                         "strategy": "Playwright Browser",
@@ -137,7 +170,7 @@ class BypassEngine:
                 else:
                     return {
                         "success": False,
-                        "error": "Bypasser was unable to escape ad/shortener domain limits.",
+                        "error": "Timeout or failed to escape shortener domain limits.",
                         "original_url": url,
                         "bypassed_url": final_url,
                         "hops": hops,
@@ -258,7 +291,8 @@ def start_telegram_bot():
 
             response_card = (
                 "🌟 *LuminaBypass Successful!* 🌟\n\n"
-                f"🔗 *Original Link:*\n[{bypassed_url}]({bypassed_url})\n\n"
+                f"📥 *Shortened URL Received:*\n`{target_url}`\n\n"
+                f"🔗 *Resolved Destination Link:*\n[{bypassed_url}]({bypassed_url})\n\n"
                 f"⚡ *Bypass Details:*\n"
                 f"• *Strategy:* `{strategy}`\n"
                 f"• *Hops Traced:* `{hops_count}`\n"
@@ -268,11 +302,15 @@ def start_telegram_bot():
             bot.edit_message_text(response_card, chat_id=status_msg.chat.id, message_id=status_msg.message_id)
         else:
             error_reason = result.get("error", "Redirection timed out or ad-wall limits reached.")
+            bypassed_url = result.get("bypassed_url") or target_url
+            
             error_card = (
                 "❌ *LuminaBypass Failed*\n\n"
-                f"Unable to resolve: `{target_url}`\n\n"
-                f"⚠️ *Reason:* `{error_reason}`\n\n"
-                "💡 _Tip: Try testing the link on our Web Dashboard or run it again._"
+                f"📥 *Shortened URL Received:*\n`{target_url}`\n\n"
+                f"⚠️ *Bypasser could not escape the shortener wall.* The final location reached was:\n"
+                f"[{bypassed_url}]({bypassed_url})\n\n"
+                f"⚠️ *Failure Reason:* `{error_reason}`\n\n"
+                "💡 _Tip: Make sure the shortened link is valid and try sending it again._"
             )
             bot.edit_message_text(error_card, chat_id=status_msg.chat.id, message_id=status_msg.message_id)
 
